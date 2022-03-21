@@ -36,13 +36,26 @@ empty = Leaf
 -- | Build a tree from a list
 -------------------------------------------------------------------------------
 build :: (Ord a) => [a] -> BST a
-build xs = error "TBD:build"
+build [] = Leaf
+build (x:y) = Node x (build l) (build r)
+  where
+    l = [ l1 | l1 <- y, l1 < x]
+    r = [ r1 | r1 <- y, x < r1]
+-- build xs = error "TBD:build"
 
 -------------------------------------------------------------------------------
 -- | Check membership in BST
 -------------------------------------------------------------------------------
 contains :: (Ord a) => a -> BST a -> Bool
-contains x t = error "TBD:contains" 
+contains x y = case y of
+  Node m l r -> case m == x of
+    True -> True
+    False -> case (m > x) of 
+      True -> contains x l
+      _ -> contains x r
+  Leaf -> False
+-- contains x t = error "TBD:contains" 
+
 
 t2 :: BST Int
 t2 = Node 5 Leaf (Node 20 (Node 10 Leaf Leaf) (Node 30 Leaf Leaf))
@@ -52,7 +65,14 @@ t2 = Node 5 Leaf (Node 20 (Node 10 Leaf Leaf) (Node 30 Leaf Leaf))
 -- | In-order traversal (fold)
 -------------------------------------------------------------------------------
 fold :: (b -> a -> b) -> b -> BST a -> b
-fold f b t = error "TBD:fold"
+fold f x t = case t of 
+	Node m l r -> right
+		where 
+			left = fold f x l
+			mid = f left m
+			right = fold f mid r
+	Leaf -> x
+-- fold f b t = error "TBD:fold"
 
 toList :: BST a -> [a]
 toList = reverse . fold (\xs x -> x:xs) []
@@ -65,19 +85,41 @@ toString t = "build " ++ show (toList t)
 -- | Adding an element
 -------------------------------------------------------------------------------
 add :: (Ord a) => a -> BST a -> BST a
-add x t = error "TBD:add" 
+add x Leaf = Node x Leaf Leaf
+add x (Node y l r)
+  | x < y  = Node y (add x l) r
+  | x > y  = Node y l (add x r)
+  | x == y = Node y l r
+-- add x t = error "TBD:add" 
 
 -------------------------------------------------------------------------------
 -- | Removing the minumum element
 -------------------------------------------------------------------------------
 removeMin :: (Ord a) => BST a -> (a, BST a)
-removeMin t = error "TBD:removeMin" 
+removeMin x = case x of
+	Node m l r -> reMove (toList x)
+    where
+      reMove :: (Ord a) => [a] -> (a, BST a)
+      reMove (x1 : y) = (x1, build y) 
+
+-- removeMin t = error "TBD:removeMin" 
 
 -------------------------------------------------------------------------------
 -- | Removing an element
 -------------------------------------------------------------------------------
 remove :: (Ord a) => a -> BST a -> BST a
-remove x t = error "TBD:remove"
+remove x Leaf = Leaf
+remove x (Node y l r)
+  | x < y  = Node y (remove x l)  r
+  | x > y  = Node y l  (remove x r)
+  | x == y = remove2 (Node y l r) 
+    where              
+      remove2 (Node y Leaf r) = r
+      remove2 (Node y l Leaf) = l
+      remove2 (Node y l r) = Node remove3 l remove4
+        where 
+          (remove3,remove4) = removeMin r
+-- remove x t = error "TBD:remove"
 
 -------------------------------------------------------------------------------
 -- | QuickCheck Properties
@@ -111,9 +153,18 @@ prop_add_isOrd elt t = isOrdered (add elt t)
 
 -- Holds after `add`: Fix this property
 prop_multiset :: [Int] -> Bool 
-prop_multiset xs = toList (build xs) == L.sort xs   -- <<<< TBD: you need to fix this property
-
-
+prop_multiset xs = toList (build xs) == L.sort (helper1 xs)   -- <<<< TBD: you need to fix this property
+  where
+    helper1 :: [Int] -> [Int]
+    helper1 l = reverse (helper2 [] l)
+      where
+        helper2 :: [Int] -> [Int] -> [Int]
+        helper2 tst [] = tst
+        helper2 tst (a:b) = helper2 tst2 l
+          where
+            tst2 = if elem a tst == False then [a] ++ tst else tst
+            l = b
+            
 -- Holds after `removeMin`
 prop_remove_min :: BST Int -> Bool
 prop_remove_min Leaf = True
